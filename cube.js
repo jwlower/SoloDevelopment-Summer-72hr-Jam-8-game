@@ -37,11 +37,11 @@ export class Cube {
         return this.group;
     }
     getLayer(axis, index) {
-        // axis: 'x', 'y', or 'z'
-        // index: layer index (e.g., -1, 0, 1, etc.)
-        return this.cubelets.filter(cubelet => {
-            // Use Math.round to avoid floating point errors
-            return Math.round(cubelet.mesh.position[axis]) === Math.round(index);
-        });
+        // compare on a 0.5 grid: -1.5,-1.0,-0.5,0,0.5,1.0,1.5,...
+        const key = Math.round(index * 2);
+        return this.cubelets.filter(c =>
+            Math.round(c.mesh.position[axis] * 2) === key
+        );
+        // (Alternatively: Math.abs(c.mesh.position[axis] - index) < 1e-4)
     }
 }

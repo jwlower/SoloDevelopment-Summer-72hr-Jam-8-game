@@ -6,3 +6,24 @@ body {
 canvas {
     display: block;
 }
+.controls {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+}
+
+.controls button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.9);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.controls button:hover {
+    background: rgba(255,255,255,1);
+}
