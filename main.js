@@ -28,7 +28,7 @@ controls.dampingFactor = 0.05;
 // --- Layer rotation helper (unchanged API) ---
 function rotateLayer(cube, axis, index, angle, duration = 1) {
     return new Promise(resolve => {
-        const layerCubelets = cube.getLayer(axis, index);            // uses Cube.getLayer ✅
+        const layerCubelets = cube.getLayer(axis, index);            
         const layerGroup = new THREE.Group();
 
         layerCubelets.forEach(cubelet => {
@@ -73,28 +73,33 @@ function rotateLayer(cube, axis, index, angle, duration = 1) {
 }
 
 // --- One shuffle sequence (optionally auto-solve) ---
-async function performShuffle(cube, movesCount = 10, solveAfter = true, solve = false) {
+async function shuffleCube(cube, movesCount = 10, solveAfter = true) {
     const axes = ['x', 'y', 'z']; 
-    const moves = [];
 
     // build random moves
     for (let i = 0; i < movesCount; i++) {
         const axis = axes[Math.floor(Math.random() * axes.length)];
         const index = Math.floor(Math.random() * cube.size) - (cube.size - 1) / 2;
         const angle = Math.random() > 0.5 ? Math.PI / 2 : -Math.PI / 2;
-        moves.push({ axis, index, angle });
+        SHUFFLE_MOVES.push({ axis, index, angle });
     }
 
     // play shuffle
-    for (const move of moves) {
+    for (const move of SHUFFLE_MOVES) {
         await rotateLayer(cube, move.axis, move.index, move.angle, 0.6);
     }
 
     if (solveAfter) {
         // reverse to solve
-        for (const move of moves.slice().reverse()) {
+        for (const move of SHUFFLE_MOVES.slice().reverse()) {
             await rotateLayer(cube, move.axis, move.index, -move.angle, 0.6);
         }
+    }
+}
+
+async function solveCube(cube) {
+    for (const move of SHUFFLE_MOVES.slice().reverse()) {
+        await rotateLayer(cube, move.axis, move.index, -move.angle, 0.6);
     }
 }
 
@@ -109,12 +114,12 @@ const resetBtn = document.getElementById('resetBtn');
 
 shuffleBtn.addEventListener('click', async () => {
     playing = false; // stop any loop
-    await performShuffle(cube, 12, false); // just shuffle (no solve)
+    await shuffleCube(cube, 12, false); // just shuffle (no solve)
 });
 
 solveBtn.addEventListener('click', async () => {
     playing = false; // stop any loop
-    await performShuffle(cube, 12, true); // shuffle + solve
+    await solveCube(cube); // shuffle + solve
 });
 
 playBtn.addEventListener('click', async () => {
@@ -122,7 +127,7 @@ playBtn.addEventListener('click', async () => {
     playing = true;
     // loop shuffle+solve forever until stopped
     while (playing) {
-        await performShuffle(cube, 1, true);
+        await shuffleCube(cube, 1, true);
     }
 });
 
