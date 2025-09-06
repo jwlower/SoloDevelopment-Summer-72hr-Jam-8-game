@@ -6,9 +6,9 @@ import { Cube } from './cube.js';
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-const CUBE_SIZE = 4; // 4x4 cube
-
-const SHUFFLE_MOVES = [];
+let CUBE_SIZE = document.getElementById("cubeSize").value; // 4x4 cube
+let SHUFFLE_MOVES_COUNT = document.getElementById("shuffleMoves").value;
+let SHUFFLE_MOVES = [];
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -73,7 +73,7 @@ function rotateLayer(cube, axis, index, angle, duration = 1) {
 }
 
 // --- One shuffle sequence (optionally auto-solve) ---
-async function shuffleCube(cube, movesCount = 10, solveAfter = true) {
+async function shuffleCube(cube, movesCount = SHUFFLE_MOVES_COUNT, solveAfter = true) {
     const axes = ['x', 'y', 'z']; 
 
     // build random moves
@@ -101,39 +101,11 @@ async function solveCube(cube) {
     for (const move of SHUFFLE_MOVES.slice().reverse()) {
         await rotateLayer(cube, move.axis, move.index, -move.angle, 0.6);
     }
+
+    SHUFFLE_MOVES = [];
 }
 
-// --- Play loop state ---
-let playing = false;
-
-// Button hooks
-const shuffleBtn = document.getElementById('shuffleBtn');
-const solveBtn = document.getElementById('solveBtn');
-const playBtn = document.getElementById('playBtn');
-const resetBtn = document.getElementById('resetBtn');
-
-shuffleBtn.addEventListener('click', async () => {
-    playing = false; // stop any loop
-    await shuffleCube(cube, 12, false); // just shuffle (no solve)
-});
-
-solveBtn.addEventListener('click', async () => {
-    playing = false; // stop any loop
-    await solveCube(cube); // shuffle + solve
-});
-
-playBtn.addEventListener('click', async () => {
-    if (playing) return;
-    playing = true;
-    // loop shuffle+solve forever until stopped
-    while (playing) {
-        await shuffleCube(cube, 1, true);
-    }
-});
-
-resetBtn.addEventListener('click', async () => {
-    playing = false;
-
+async function reset() {
     // Wait for all active tweens to finish
     const activeTweens = gsap.globalTimeline.getChildren(false, true, false);
     await Promise.all(
@@ -170,8 +142,59 @@ resetBtn.addEventListener('click', async () => {
     // scene.add(light);  // if you use lights
 
     // Rebuild the cube
-    cube = new Cube(4);
+    
+    cube = new Cube(CUBE_SIZE);
     scene.add(cube.getGroup());
+    SHUFFLE_MOVES = [];
+}
+
+// --- Play loop state ---
+let playing = false;
+
+// Button hooks
+const shuffleBtn = document.getElementById('shuffleBtn');
+const solveBtn = document.getElementById('solveBtn');
+const playBtn = document.getElementById('playBtn');
+const resetBtn = document.getElementById('resetBtn');
+const shuffleMoves = document.getElementById('shuffleMoves');
+const cubeSize = document.getElementById('cubeSize');
+
+shuffleMoves.addEventListener('change', async () => {
+    playing = false;
+    SHUFFLE_MOVES_COUNT = document.getElementById("shuffleMoves").value;
+
+});
+
+cubeSize.addEventListener('change', async () => {
+    playing = false;
+    CUBE_SIZE = document.getElementById("cubeSize").value; // 4x4 cube
+});
+
+shuffleBtn.addEventListener('click', async () => {
+    playing = false; // stop any loop
+    await shuffleCube(cube, SHUFFLE_MOVES_COUNT, false); // just shuffle (no solve)
+});
+
+solveBtn.addEventListener('click', async () => {
+    playing = false; // stop any loop
+    await solveCube(cube); // shuffle + solve
+});
+
+playBtn.addEventListener('click', async () => {
+    if (playing) return;
+    playing = true;
+    // loop shuffle+solve forever until stopped
+    while (playing) {
+        await shuffleCube(cube, 1, true);
+    }
+});
+
+
+
+resetBtn.addEventListener('click', async () => {
+    playing = false;
+    reset();
+    
 });
 
 // animate & render
