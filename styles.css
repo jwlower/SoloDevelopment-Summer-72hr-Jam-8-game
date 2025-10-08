@@ -1,6 +1,8 @@
 body {
     margin: 0;
     overflow: hidden;
+    background: #000; /* <<< add this */
+    color: #fff; /* optional: ensures default text is readable */
 }
 
 canvas {
@@ -26,4 +28,28 @@ canvas {
 
 .controls button:hover {
     background: rgba(255,255,255,1);
+}
+
+.screen {
+    display: none;
+    position: fixed; /* fill the viewport */
+    inset: 0; /* top/right/bottom/left: 0 */
+}
+
+    .screen.active {
+        display: block;
+        background: #000; /* keep the overlay black */
+    }
+
+#setupScreen {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+#playScreen {
+    width: 100%;
+    height: 100%;
 }

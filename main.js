@@ -3,27 +3,63 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { gsap } from 'gsap';
 import { Cube } from './cube.js';
 
+const setupScreen = document.getElementById('setupScreen');
+const playScreen = document.getElementById('playScreen');
+const startSessionBtn = document.getElementById('startSessionBtn');
+const backBtn = document.getElementById('backBtn');
+
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-let CUBE_SIZE = document.getElementById("cubeSize").value; // 4x4 cube
-let SHUFFLE_MOVES_COUNT = document.getElementById("shuffleMoves").value;
+//let CUBE_SIZE = document.getElementById("cubeSize").value; // 4x4 cube
+//let SHUFFLE_MOVES_COUNT = document.getElementById("shuffleMoves").value;
+let CUBE_SIZE = 3;
+let SHUFFLE_MOVES_COUNT = 12;
 let SHUFFLE_MOVES = [];
+let cube;
+showScreen('setupScreen');
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setAnimationLoop(animate);
-document.body.appendChild(renderer.domElement);
+document.getElementById('playScreen').appendChild(renderer.domElement);
 
 // KEEP the Cube instance (not just the group)
-let cube = new Cube(CUBE_SIZE);
-scene.add(cube.getGroup());
 camera.position.z = 5;
 
 // OrbitControls
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05; 
+
+function startSession() {
+    CUBE_SIZE = parseInt(document.getElementById("setupCubeSize").value);
+    SHUFFLE_MOVES_COUNT = parseInt(document.getElementById("setupShuffleMoves").value);
+
+    showScreen('playScreen');
+
+    if (cube) {
+        scene.remove(cube.getGroup());
+    }
+    cube = new Cube(CUBE_SIZE);
+    scene.add(cube.getGroup());
+}
+
+startSessionBtn.addEventListener('click', () => {
+    startSession();
+});
+
+backBtn.addEventListener('click', () => {
+    playing = false;
+    showScreen('setupScreen');
+});
+
+// Main Menu
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+
 
 // --- Layer rotation helper (unchanged API) ---
 function rotateLayer(cube, axis, index, angle, duration = 1) {
@@ -156,19 +192,8 @@ const shuffleBtn = document.getElementById('shuffleBtn');
 const solveBtn = document.getElementById('solveBtn');
 const playBtn = document.getElementById('playBtn');
 const resetBtn = document.getElementById('resetBtn');
-const shuffleMoves = document.getElementById('shuffleMoves');
-const cubeSize = document.getElementById('cubeSize');
 
-shuffleMoves.addEventListener('change', async () => {
-    playing = false;
-    SHUFFLE_MOVES_COUNT = document.getElementById("shuffleMoves").value;
 
-});
-
-cubeSize.addEventListener('change', async () => {
-    playing = false;
-    CUBE_SIZE = document.getElementById("cubeSize").value; // 4x4 cube
-});
 
 shuffleBtn.addEventListener('click', async () => {
     playing = false; // stop any loop
