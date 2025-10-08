@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-export class Cubelet {
+export class Cubelet { 
     constructor(x, y, z, faceColors) {
         // Create geometry and materials for each face
         const geometry = new THREE.BoxGeometry(1, 1, 1);

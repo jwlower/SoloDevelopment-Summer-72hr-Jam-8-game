@@ -23,7 +23,7 @@ camera.position.z = 5;
 // OrbitControls
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.05;
+controls.dampingFactor = 0.05; 
 
 // --- Layer rotation helper (unchanged API) ---
 function rotateLayer(cube, axis, index, angle, duration = 1) {
