@@ -30,6 +30,38 @@ canvas {
     background: rgba(255,255,255,1);
 }
 
+.game-hud {
+    position: absolute;
+    top: 64px; /* sits below your main controls bar */
+    left: 12px;
+    display: none; /* toggled by JS when in game mode */
+    gap: 8px;
+    align-items: center;
+    background: rgba(0,0,0,0.35);
+    padding: 8px 10px;
+    border-radius: 8px;
+    backdrop-filter: blur(2px);
+}
+
+    .game-hud.show {
+        display: inline-flex;
+    }
+
+.go-btn {
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid #3b82f6;
+    background: #1d4ed8;
+    color: #fff;
+    cursor: pointer;
+}
+
+.moves-left {
+    color: #e5e7eb;
+}
+
+
 .screen {
     display: none;
     position: fixed; /* fill the viewport */

@@ -3,16 +3,34 @@
 <head>
     <meta charset="utf-8" />
     <title>Rubik Screensaver</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="icon" href="data:,"><!-- optional: prevents favicon 404 -->
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/examples/jsm/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+            "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.12.5/index.js"
+          }
+        }
+    </script>
 </head>
 <body>
     <!-- Setup Screen -->
     <div id="setupScreen" class="screen active">
-        <h1 style="color: white;">Rubik Setup</h1>
-        <label style="color: white;">Cube Size:</label>
+        <h1>Rubik Setup</h1>
+
+        <label>Cube Size:</label>
         <input type="number" id="setupCubeSize" min="2" max="10" value="3" />
-        <label style="color: white;">Shuffle Moves:</label>
+
+        <label>Shuffle Moves:</label>
         <input type="number" id="setupShuffleMoves" min="1" max="100" value="12" />
+
+        <label style="display:block; margin-top:10px;">
+            <input type="checkbox" id="setupGameMode" />
+            Game Mode (step-by-step solve)
+        </label>
+
         <button id="startSessionBtn">Start</button>
     </div>
 
@@ -25,8 +43,15 @@
             <button id="resetBtn">Reset</button>
             <button id="backBtn">Main Menu</button>
         </div>
+
+        <!-- Game HUD -->
+        <div id="gameHud" class="game-hud" aria-hidden="true">
+            <button id="gameStartBtn" class="go-btn">START</button>
+            <button id="gameGoBtn" class="go-btn">GO</button>
+            <span class="moves-left">Moves left: <strong id="movesLeftCount">0</strong></span>
+        </div>
     </div>
 
-    <script type="module" src="/main.js"></script>
+    <script type="module" src="./main.js"></script>
 </body>
 </html>
