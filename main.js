@@ -235,11 +235,22 @@ async function shuffleCube(cube, movesCount, solveAfter = false) {
 
     // fresh list each time we shuffle (no double-playback)
     SHUFFLE_MOVES = [];
+
     for (let i = 0; i < movesCount; i++) {
         const axis = axes[Math.floor(Math.random() * axes.length)];
         const index = idxs[Math.floor(Math.random() * idxs.length)];
         const angle = Math.random() > 0.5 ? Math.PI / 2 : -Math.PI / 2;
-        SHUFFLE_MOVES.push({ axis, index, angle });
+        const proposed_move = { axis, index, angle };
+        //if proposed_move is the inverse of the last move, invert angle
+        if (SHUFFLE_MOVES.length > 0) {
+            const last_move = SHUFFLE_MOVES[SHUFFLE_MOVES.length - 1];
+            if (last_move.axis === proposed_move.axis &&
+                last_move.index === proposed_move.index &&
+                last_move.angle === -proposed_move.angle) {
+                proposed_move.angle = -proposed_move.angle;
+            }
+        }
+        SHUFFLE_MOVES.push(proposed_move);
     }
 
     // play the scramble
