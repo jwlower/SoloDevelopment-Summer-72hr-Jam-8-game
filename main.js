@@ -2,6 +2,7 @@
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { gsap } from 'gsap';
 import { Cube } from './cube.js';
+import { TicTacToe } from './ticTacToe.js';
 
 /* =========================================================================
    DOM references
@@ -58,6 +59,8 @@ let playing = false;        // whether Play loop is running
 // rotation queue to avoid simultaneous GSAP tweens
 let isRotating = false;
 const moveQueue = [];
+
+let ttt = null;
 
 /* =========================================================================
    Utilities
@@ -289,6 +292,9 @@ async function startSession() {
     cube = new Cube(CUBE_SIZE);
     scene.add(cube.getGroup());
 
+    // make tic-tac-toe manager (pass current camera/renderer)
+    ttt = new TicTacToe(scene, camera, renderer, cube, CUBE_SIZE);
+
     if (inGameMode) await enterGameMode();
     else exitGameMode();
 }
@@ -379,13 +385,21 @@ gameStartBtn.addEventListener('click', async () => {
 // GO: one solve step
 gameGoBtn.addEventListener('click', async () => {
     if (!inGameMode || gamePhase !== 'solving' || !solveQueue.length || isRotating) return;
-
     const step = solveQueue.shift();
     await rotateLayerQueued(cube, step.axis, step.index, step.angle, 0.6);
-    updateMovesLeft();
-
+    // after rotation completes, evaluate marks & scores
+    const lines = ttt.evaluateRound();
+    updateMovesLeft(); // existing UI update
+    // check end conditions
+    if (ttt.isFull() || (typeof cube.isSolved === 'function' && cube.isSolved())) {
+        ttt.disable();
+        // announce winner:
+        const winner = ttt.scores.X === ttt.scores.O ? 'Tie' : (ttt.scores.X > ttt.scores.O ? 'X wins' : 'O wins');
+        alert(`Game over: ${winner}`);
+        exitGameMode();
+    }
     if (solveQueue.length === 0) {
-        exitGameMode(); // solved
+        exitGameMode();
     }
 });
 
