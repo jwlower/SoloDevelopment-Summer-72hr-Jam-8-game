@@ -1,8 +1,27 @@
 {
   "dependencies": {
+    "gsap": "^3.13.0",
     "three": "^0.179.1"
   },
   "devDependencies": {
     "vite": "^7.1.2"
-  }
+  },
+  "name": "solodevelopment-summer-72hr-jam-8-game",
+  "version": "1.0.0",
+  "description": "Run in console with: npx vite",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jwlower/SoloDevelopment-Summer-72hr-Jam-8-game.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jwlower/SoloDevelopment-Summer-72hr-Jam-8-game/issues"
+  },
+  "homepage": "https://github.com/jwlower/SoloDevelopment-Summer-72hr-Jam-8-game#readme"
 }

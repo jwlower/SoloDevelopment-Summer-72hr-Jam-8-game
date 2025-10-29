@@ -2,6 +2,7 @@
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { gsap } from 'gsap';
 import { Cube } from './cube.js';
+import { TicTacToe } from './ticTacToe.js';
 
 /* =========================================================================
    DOM references
@@ -58,6 +59,8 @@ let playing = false;        // whether Play loop is running
 // rotation queue to avoid simultaneous GSAP tweens
 let isRotating = false;
 const moveQueue = [];
+
+let ttt = null;
 
 /* =========================================================================
    Utilities
@@ -155,6 +158,7 @@ function exitGameMode() {
     setMainControlsDisabled(false);
     showGameHud(false);
     updateMovesLeft();
+    if (ttt) ttt.disable();
 }
 
 /* =========================================================================
@@ -182,7 +186,7 @@ async function processNextMove() {
     }
 }
 
-// Your existing rotate function, with snap + reparent baked in. (Based on your current code.) :contentReference[oaicite:1]{index=1}
+// Your existing rotate function, with snap + reparent baked in. (Based on your current code.)
 function rotateLayer(cube, axis, index, angle, duration = 0.6) {
     return new Promise(resolve => {
         const layerCubelets = cube.getLayer(axis, index);
@@ -289,6 +293,16 @@ async function startSession() {
     cube = new Cube(CUBE_SIZE);
     scene.add(cube.getGroup());
 
+    // ensure only one scoreboard exists
+    const hud = document.getElementById('gameHud');
+    const existing = hud && hud.querySelector('.ttt-scores');
+    if (existing) existing.remove();
+
+    // make tic-tac-toe manager (pass current camera/renderer)
+    ttt = new TicTacToe(scene, camera, renderer, cube, CUBE_SIZE);
+    // clear any persisted or leftover marks for a fresh session
+    ttt.clearAll();
+
     if (inGameMode) await enterGameMode();
     else exitGameMode();
 }
@@ -316,6 +330,12 @@ async function resetAll() {
     // Rebuild cube
     cube = new Cube(CUBE_SIZE);
     scene.add(cube.getGroup());
+
+    // recreate tic-tac-toe manager
+    ttt = new TicTacToe(scene, camera, renderer, cube, CUBE_SIZE);
+    // ensure fresh board
+    ttt.clearAll();
+
     SHUFFLE_MOVES = [];
     solveQueue = [];
 }
@@ -364,13 +384,15 @@ gameStartBtn.addEventListener('click', async () => {
 
     gameStartBtn.disabled = true;
     try {
-        await shuffleCube(cube, SHUFFLE_MOVES_COUNT, false);  // <-- only here
-        // build the inverse sequence for stepping
+        await shuffleCube(cube, SHUFFLE_MOVES_COUNT, false);  // Shuffle the cube
         solveQueue = SHUFFLE_MOVES.slice().reverse().map(m => ({
             axis: m.axis, index: m.index, angle: -m.angle,
         }));
         gamePhase = 'solving';
         updateMovesLeft();
+
+        // Enable X/O placement
+        if (ttt) ttt.enablePlacement();
     } finally {
         gameStartBtn.disabled = false;
     }
@@ -379,13 +401,26 @@ gameStartBtn.addEventListener('click', async () => {
 // GO: one solve step
 gameGoBtn.addEventListener('click', async () => {
     if (!inGameMode || gamePhase !== 'solving' || !solveQueue.length || isRotating) return;
-
     const step = solveQueue.shift();
+
+    // Disable placement while rotating
+    if (ttt) ttt.disablePlacement();
+
     await rotateLayerQueued(cube, step.axis, step.index, step.angle, 0.6);
+
+    // Re-enable placement after rotation
+    if (ttt && !ttt.isFull()) {
+        ttt.enablePlacement();
+    }
+
     updateMovesLeft();
 
-    if (solveQueue.length === 0) {
-        exitGameMode(); // solved
+    // Check end conditions
+    if (ttt.isFull() || (typeof cube.isSolved === 'function' && cube.isSolved())) {
+        if (ttt) ttt.disablePlacement();
+        const winner = ttt.scores.X === ttt.scores.O ? 'Tie' : (ttt.scores.X > ttt.scores.O ? 'X wins' : 'O wins');
+        alert(`Game over: ${winner}`);
+        exitGameMode();
     }
 });
 
