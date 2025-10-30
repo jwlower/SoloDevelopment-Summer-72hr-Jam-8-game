@@ -42,6 +42,23 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 
+// lock to orbit/zoom only
+controls.enablePan = false;             // 🚫 no panning
+controls.screenSpacePanning = false;    // just in case
+controls.target.set(0, 0, 0);           // always orbit the cube center
+controls.minDistance = 3;
+controls.maxDistance = 12;
+
+// Use both LMB and RMB for rotate; MMB for dolly/zoom
+controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
+controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
+
+// good UX hint while in placement mode (optional; set/reset from TicTacToe)
+renderer.domElement.style.cursor = 'default';
+
+// Remember initial camera pose for a true reset
+const INITIAL_CAM_POS = camera.position.clone();
+
 /* =========================================================================
    App state
    ========================================================================= */
@@ -303,6 +320,12 @@ async function startSession() {
     // clear any persisted or leftover marks for a fresh session
     ttt.clearAll();
 
+    ttt.setInputGuards({
+        isRotating: () => isRotating,
+        gamePhase: () => gamePhase,
+        hasShuffled: () => SHUFFLE_MOVES.length > 0
+    });
+
     if (inGameMode) await enterGameMode();
     else exitGameMode();
 }
@@ -344,6 +367,13 @@ async function resetAll() {
    Event handlers
    ========================================================================= */
 startSessionBtn.addEventListener('click', startSession);
+
+document.getElementById('cameraResetBtn').addEventListener('click', () => {
+    // Reset controls target and position
+    controls.reset();
+    camera.position.copy(INITIAL_CAM_POS);
+    camera.lookAt(0, 0, 0);
+});
 
 backBtn.addEventListener('click', () => {
     playing = false;

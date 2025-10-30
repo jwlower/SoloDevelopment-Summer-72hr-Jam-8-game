@@ -20,12 +20,20 @@ export class TicTacToe {
         this.enabled = false;
         this._hoverKey = null;
 
+        // Selection state for keyboard navigation
+        this.selFace = null;   // 0..5
+        this.selR = 0;         // 0..size-1
+        this.selC = 0;         // 0..size-1
+        this._selKey = null;   // cache which cubelet face we’ve painted
+        this._guards = { isRotating: () => false, gamePhase: () => 'pre', hasShuffled: () => false };
+    
+        // keyboard binding (we’ll keep Space to place; Arrows to move)
+        this._boundKeyDown = (e) => this._onKeyDown(e);
+
         // DOM
         this.scoreEl = this._createScoreDom();
         this._turnEl = document.getElementById('turnIndicator');
-        this._updateTurnIndicator = () => {
-            if (this._turnEl) this._turnEl.textContent = `${this.currentPlayer}'s Turn`;
-        };
+        this._updateTurnIndicator = () => { if (this._turnEl) this._turnEl.textContent = `${this.currentPlayer}'s Turn`; };
         this._updateTurnIndicator();
         // whenever you toggle players:
         this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
@@ -44,6 +52,96 @@ export class TicTacToe {
         this.loadState();
     }
 
+      /** Main can inject guards so we only allow input when valid */
+      setInputGuards({ isRotating, gamePhase, hasShuffled }) {
+        if (isRotating) this._guards.isRotating = isRotating;
+        if (gamePhase) this._guards.gamePhase = gamePhase;
+        if (hasShuffled) this._guards.hasShuffled = hasShuffled;
+      }
+
+      /** Determine which cube face is most front-facing to the camera */
+      _activeFaceByCamera() {
+        const camDir = this.camera.position.clone().normalize();
+        // Dominant axis (/-X, /-Y, /-Z)
+            const ax = Math.abs(camDir.x), ay = Math.abs(camDir.y), az = Math.abs(camDir.z);
+        if (ax >= ay && ax >= az) return camDir.x >= 0 ? 4 /* Z Front? see map below */ : 5;
+        if (ay >= ax && ay >= az) return camDir.y >= 0 ? 2 : 3;
+        return camDir.z >= ax && camDir.z >= ay ? 4 : 5;
+      }
+
+      /** Explicit face mapping (based on your face color order in cube.js)
+   *  0: Right X (Red), 1: Left -X (Green), 2: Top Y (Blue),
+   *  3: Bottom -Y (Yellow), 4: Front Z (Orange), 5: Back -Z (White)
+   */
+      _faceFromNormal(nx, ny, nz) {
+        if (nx === 1) return 0;
+        if (nx === -1) return 1;
+        if (ny === 1) return 2;
+        if (ny === -1) return 3;
+        if (nz === 1) return 4;
+        if (nz === -1) return 5;
+        return null;
+      }
+
+      /** Positions grid r,c -> find the cubelet mesh for a given face */
+      _gridToCubelet(faceIndex, r, c) {
+        const half = (this.size - 1) / 2;
+        const coord = (i) => -half + i; // 0..size-1 -> -half..half
+        let x, y, z;
+        switch (faceIndex) {
+      case 0: x = half; y = coord(this.size - 1 - r); z = coord(c); break; // X
+          case 1: x = -half; y = coord(this.size - 1 - r); z = coord(this.size - 1 - c); break; // -X
+          case 2: y = half; x = coord(c); z = coord(this.size - 1 - r); break; // Y
+          case 3: y = -half; x = coord(c); z = coord(r); break;                // -Y
+          case 4: z = half; x = coord(c); y = coord(this.size - 1 - r); break; // Z (Front)
+          case 5: z = -half; x = coord(this.size - 1 - c); y = coord(this.size - 1 - r); break; // -Z (Back)
+          default: return null;
+        }
+    // find mesh at (x,y,z)
+        const mesh = this.cube.group.children.find(m =>
+              Math.abs(m.position.x - x) < 1e-4 &&
+              Math.abs(m.position.y - y) < 1e-4 &&
+              Math.abs(m.position.z - z) < 1e-4
+            );
+    return mesh && mesh.userData ? mesh.userData.cubelet : null;
+  }
+
+      _clearSelection() {
+        if (!this._selKey) return;
+        const [meshId, faceIndex] = this._selKey.split('_');
+        const mesh = this.cube.group.children.find(m => String(m.id) === meshId);
+        if (mesh && mesh.userData && mesh.userData.cubelet) {
+              const cubelet = mesh.userData.cubelet;
+              const r = this.selR, c = this.selC;
+              const val = this.faces[faceIndex][r][c];
+              cubelet.setFaceMark(faceIndex, val); // restore tile to placed mark or base color
+            }
+        this._selKey = null;
+      }
+
+      _paintSelection() {
+        if (this.selFace == null) return;
+        const cubelet = this._gridToCubelet(this.selFace, this.selR, this.selC);
+        if (!cubelet) return;
+        this._clearSelection();
+        this._selKey = `${cubelet.mesh.id}_${this.selFace}`;
+        // gray base  semi-opaque preview glyph for the current player
+        cubelet.setFaceMark(this.selFace, 'HOVER'); // thin border, no glyph
+      }
+
+      _ensureSelection() {
+        if (this.selFace == null) {
+              // choose front-facing face  center tile
+                  const face = this._activeFaceByCamera();
+              this.selFace = (face != null ? face : 4);
+              this.selR = Math.floor(this.size / 2);
+              this.selC = Math.floor(this.size / 2);
+            }
+        this._paintSelection();
+      }
+
+
+
     // compatibility aliases (main.js may call enable()/disable())
     enable() { this.enablePlacement(); }
     disable() { this.disablePlacement(); }
@@ -51,17 +149,30 @@ export class TicTacToe {
     enablePlacement() {
         if (this.enabled) return;
         this.enabled = true;
-        this.renderer.domElement.addEventListener('pointermove', this._boundPointerMove);
+
+        // keyboard only
         window.addEventListener('keydown', this._boundKeyDown);
+        // NEW: track hover on the WebGL canvas (does not conflict with OrbitControls drag)
+        this.renderer.domElement.addEventListener('pointermove', this._boundPointerMove, { passive: true });
+
+        this._boundPointerLeave = () => this._clearHover();
+        this.renderer.domElement.addEventListener('pointerleave', this._boundPointerLeave, { passive: true });
+
+        this.renderer.domElement.style.cursor = 'crosshair';
+
+        if (this.keyboardMode) this._ensureSelection(); // only if arrows were used
         this._updateTurnIndicator();
     }
 
     disablePlacement() {
         if (!this.enabled) return;
         this.enabled = false;
-        this.renderer.domElement.removeEventListener('pointermove', this._boundPointerMove);
         window.removeEventListener('keydown', this._boundKeyDown);
+        this.renderer.domElement.removeEventListener('pointermove', this._boundPointerMove);
+        if (this._boundPointerLeave) this.renderer.domElement.removeEventListener('pointerleave', this._boundPointerLeave);
+        this.renderer.domElement.style.cursor = 'default';
         this._clearHover();
+        this._clearSelection();
         this._hoverTarget = null;
     }
 
@@ -104,47 +215,33 @@ export class TicTacToe {
 
     _onPointerMove(e) {
         if (!this.enabled) return;
+        // Also bail when not in solving phase or while rotating
+        if (!this._guards.hasShuffled() || this._guards.gamePhase() !== 'solving' || this._guards.isRotating()) {
+            this._clearHover();
+            return;
+        }
+        // If user moves the mouse, leave keyboard mode and drop its selection paint
+        if (this.keyboardMode) {
+            this.keyboardMode = false;
+            this._clearSelection();
+        }
+
         const rect = this.renderer.domElement.getBoundingClientRect();
         this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
         this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
         this.raycaster.setFromCamera(this.pointer, this.camera);
 
-        const intersects = this.raycaster.intersectObjects(this.cube.group.children, true);
-        if (!intersects.length) {
-            this._clearHover();
-            return;
-        }
-
-        const it = intersects[0];
-
-        // find cubelet mesh ancestor before trying to access face/normal
-        const mesh = this._findCubeletAncestor(it.object);
+        // Intersect the entire cube hierarchy; then pick the first hit on a picker plane
+        const hits = this.raycaster.intersectObject(this.cube.group, true);
+        const pick = hits.find(
+            h => h.object && h.object.userData && typeof h.object.userData.pickFaceIndex === 'number'
+        );
+        if (!pick) { this._clearHover(); return; }
+        const faceIndex = pick.object.userData.pickFaceIndex;
+        const cubelet = pick.object.userData.cubelet;
+        const mesh = cubelet && cubelet.mesh;
         if (!mesh) { this._clearHover(); return; }
-
-        const faceNormal = this._computeFaceNormalFromIntersection(it, mesh);
-        if (!faceNormal) { this._clearHover(); return; }
-
-        // camera-facing check to reduce jitter (require face roughly facing camera)
-        if (it.point) {
-            const viewDir = this.camera.position.clone().sub(it.point).normalize();
-            if (faceNormal.dot(viewDir) < 0.6) { this._clearHover(); return; }
-        }
-
-        // UV edge margin: if ray hit is too close to the face border, ignore (reduces seam flicker)
-        if (it.face && it.uv) {
-            const u = it.uv.x, v = it.uv.y;
-            const margin = 0.10; // 10% away from edges
-            if (u < margin || u > 1 - margin || v < margin || v > 1 - margin) {
-                this._clearHover();
-                return;
-            }
-        }
-
-        const nx = Math.round(faceNormal.x), ny = Math.round(faceNormal.y), nz = Math.round(faceNormal.z);
-        const faceIndex = this._normalToFaceIndex(nx, ny, nz);
-        if (faceIndex === null) { this._clearHover(); return; }
-
-        const cubelet = mesh.userData.cubelet;
+        
         const grid = this._cubeletPosToGrid(mesh.position, faceIndex);
         if (!grid) { this._clearHover(); return; }
         const { r, c } = grid;
@@ -179,30 +276,56 @@ export class TicTacToe {
 
         this._hoverKey = null;
         this._hoverTarget = null;
+        this.keyboardMode = false; 
+    }
+
+    _commitTarget(faceIndex, r, c, cubelet) {
+        if (this.faces[faceIndex][r][c] != null) return;
+        // If not provided, resolve the cubelet from grid -> cubelet mapping
+        if (!cubelet) cubelet = this._gridToCubelet(faceIndex, r, c);
+        if (!cubelet) return;
+        this._clearSelection(); // remove preview overlay if present
+        cubelet.setFaceMark(faceIndex, this.currentPlayer, { color: '#000' }); // solid glyph
+        this.faces[faceIndex][r][c] = this.currentPlayer;
+        this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
+        this._updateTurnIndicator();
+        this.saveState();
+        if (!this.isFull()) {
+            if (this.keyboardMode) this._ensureSelection();
+            } else {
+            this.disablePlacement();
+        }
     }
 
     _onKeyDown(e) {
         if (!this.enabled) return;
-        if (e.code !== 'Space') return;
-        e.preventDefault();
-        const t = this._hoverTarget;
-        if (!t) return;
-        const { cubelet, faceIndex, r, c } = t;
-        if (this.faces[faceIndex][r][c] != null) return;
-
-        // Clear hover first so the placed mark isn't tinted
-        this._clearHover();
-        this._hoverTarget = null;
-
-        // Place the mark (solid black)
-        cubelet.setFaceMark(faceIndex, this.currentPlayer, { color: '#000' });
-        this.faces[faceIndex][r][c] = this.currentPlayer;
-
-        // Alternate player
-        this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
-        this._updateTurnIndicator();
-        this.saveState();
-        if (this.isFull()) this.disablePlacement();
+        // guards: only after shuffled, in 'solving' phase, and not rotating
+        if (!this._guards.hasShuffled() || this._guards.gamePhase() !== 'solving' || this._guards.isRotating()) return;
+        
+        // Update active face on any arrow press (based on camera)
+        const faceFromCam = this._activeFaceByCamera();
+        if (faceFromCam != null && faceFromCam !== this.selFace) {
+            this.selFace = faceFromCam;
+        }
+        
+            const before = { face: this.selFace, r: this.selR, c: this.selC };
+        let moved = false;
+        
+        
+        if (e.code === 'Space') {
+            e.preventDefault();
+            // Prefer committing the HOVER target so we can hover space
+            if (this._hoverTarget) {
+                const { cubelet, faceIndex, r, c } = this._hoverTarget;
+                this._clearHover();         // remove hover preview
+                this._clearSelection();     // just in case a stale keyboard selection exists
+                this._commitTarget(faceIndex, r, c, cubelet);
+                return;
+            }
+            // Fallback to keyboard selection if no hover
+            if (this.faces[this.selFace][this.selR][this.selC] != null) return;
+            this._commitTarget(this.selFace, this.selR, this.selC);
+        }
     }
 
     // convert dominant integer normal to face index 0..5: +X, -X, +Y, -Y, +Z, -Z
