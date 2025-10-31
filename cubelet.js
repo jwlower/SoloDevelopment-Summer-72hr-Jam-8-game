@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 export class Cubelet {
     constructor(x, y, z, faceColors) {
+        this._marks = Array(6).fill(null); // 'X' | 'O' | null
         // Create geometry and per-face canvas textures so marks can be painted
         const geometry = new THREE.BoxGeometry(1, 1, 1);
 
@@ -92,12 +93,14 @@ export class Cubelet {
         this.mesh.add(edges);
     }
 
-    // Draw an X or O on one face (faceIndex 0..5), or null to clear
+    // Draw an X or O on one face (faceIndex 0..5), 'HOVER' to overlay border, or null to clear.
+    // IMPORTANT: 'HOVER' must be NON-DESTRUCTIVE (does not change stored piece).
     setFaceMark(faceIndex, mark, options = {}) {
         const ctx = this.faceContexts[faceIndex];
         const canvas = this.faceCanvases[faceIndex];
         const tex = this.faceTextures[faceIndex];
         const size = canvas.width;
+        const stored = this._marks[faceIndex]; // 'X' | 'O' | null
 
         // clear to base color first
         const baseColor = options.baseColor || ('#' + (this.faceMaterials[faceIndex].userData.baseColor).toString(16).padStart(6, '0'));
@@ -105,14 +108,24 @@ export class Cubelet {
         ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, size, size);
 
+        let toStore = stored;
+
         if (mark === 'X' || mark === 'O') {
+            toStore = mark;
+        } else if (mark === null) {
+            toStore = null;
+        } // if 'HOVER', keep toStore = stored
+        
+            // Draw the actual piece first (if any)
+
+        if (toStore === 'X' || toStore === 'O') {
             ctx.save();
             ctx.translate(size / 2, size / 2);
-            ctx.fillStyle = options.color || (mark === 'X' ? '#ff4444' : '#1e88e5');
+            ctx.fillStyle = options.color || (toStore === 'X' ? '#ff4444' : '#1e88e5');
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.font = `bold ${Math.floor(size * 0.6)}px sans-serif`;
-            ctx.fillText(mark, 0, 6);
+            ctx.fillText(toStore, 0, 6);
             ctx.restore();
         } else if (mark === 'HOVER') {
             // draw subtle border for hover
@@ -124,10 +137,12 @@ export class Cubelet {
         }
 
         tex.needsUpdate = true;
+        this._marks[faceIndex] = (toStore === 'X' || toStore === 'O') ? toStore : null;
     }
 
     clearFaceMark(faceIndex) {
         this.setFaceMark(faceIndex, null);
+        this._marks[faceIndex] = null;
     }
 
     clearAllMarks() {
@@ -135,4 +150,8 @@ export class Cubelet {
             this.setFaceMark(i, null);
         }
     }
+    getFaceMark(faceIndex) {
+      return this._marks[faceIndex];
+    }
+    
 }

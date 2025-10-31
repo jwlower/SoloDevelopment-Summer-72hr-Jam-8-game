@@ -26,10 +26,6 @@
         <label>Shuffle Moves:</label>
         <input type="number" id="setupShuffleMoves" min="1" max="100" value="12" />
 
-        <label style="display:block; margin-top:10px;">
-            <input type="checkbox" id="setupGameMode" />
-            Game Mode (step-by-step solve)
-        </label>
 
         <button id="startSessionBtn">Start</button>
     </div>
@@ -47,10 +43,10 @@
         </div>
 
         <!-- Game HUD -->
-        <div id="gameHud" class="game-hud" aria-hidden="true">
-            <button id="gameStartBtn" class="go-btn">START</button>
-            <button id="gameGoBtn" class="go-btn">GO</button>
+        <div id="gameHud" class="game-hud" aria-hidden="false">
             <span class="moves-left">Moves left: <strong id="movesLeftCount">0</strong></span>
+            <span style="margin-left:12px">Score — X: <strong id="xScore">0</strong></span>
+            <span style="margin-left:8px">O: <strong id="oScore">0</strong></span>
 
         </div>
         <div id="turnIndicator" class="turn-indicator"></div>
